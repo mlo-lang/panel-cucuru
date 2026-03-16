@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel Cajero Cucuru</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 40px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-blue { background: #007bff; }
+        .btn-green { background: #28a745; margin-left: 10px; }
+        h1 { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Panel de Cajero - Cobros del Día</h1>
+        <p>Escribe tu alias de cajero para ver tus movimientos:</p>
+        <input type="text" id="cajeroInput" placeholder="Ejemplo: cajero_01" style="width: 200px; margin-bottom: 10px;">
+        <br>
+        <button class="btn btn-blue" onclick="cargar()">Actualizar Lista</button>
+        <button class="btn btn-green" onclick="generarPDF()">Descargar Reporte PDF</button>
+
+        <table id="tabla">
+            <thead>
+                <tr>
+                    <th>ID Cobro</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                    <th>Comentario Anexo</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let datosActuales = [];
+
+        async function cargar() {
+            const id = document.getElementById('cajeroInput').value;
+            if(!id) return alert("Escribe un alias de cajero");
+            
+            const res = await fetch(`/api/cobros/${id}`);
+            datosActuales = await res.json();
+            
+            const tbody = document.querySelector('#tabla tbody');
+            tbody.innerHTML = "";
+            
+            datosActuales.forEach((c) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${c.collection_id}</td>
+                        <td>$${c.amount}</td>
+                        <td>${c.status}</td>
+                        <td>
+                            <input type="text" value="${c.comentario_local || ''}" 
+                                onchange="guardarComentario('${c.collection_id}', this.value)"
+                                placeholder="Agregar nota...">
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        async function guardarComentario(id, texto) {
+            await fetch('/api/comentar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ collection_id: id, comentario: texto })
+            });
+        }
+
+        function generarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Reporte Diario de Cobros", 14, 15);
+            
+            const filas = datosActuales.map(c => [c.collection_id, c.amount, c.status, c.comentario_local || ""]);
+            doc.autoTable({
+                head: [['ID', 'Monto', 'Estado', 'Comentario']],
+                body: filas,
+                startY: 20
+            });
+            doc.save("reporte-cajero.pdf");
+        }
+    </script>
+</body>
+</html>
