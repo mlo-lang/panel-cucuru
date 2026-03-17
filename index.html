@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel de Gestión de Caja | Cucuru</title>
+    <title>Panel Operativo | Cucuru</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -31,18 +31,19 @@
         .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; background: #dcfce7; color: #166534; }
         .note-wrapper { display: flex; gap: 5px; }
         .note-input { flex: 1; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; }
+        .btn-save { cursor: pointer; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; }
     </style>
 </head>
 <body>
 
 <div class="header">
     <h1 style="margin:0; font-size: 22px;">Panel Operativo de Caja</h1>
-    <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru" class="logo-cucuru" id="mainLogo">
+    <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru" class="logo-cucuru" id="mainLogo" crossorigin="anonymous">
 </div>
 
 <div class="dashboard">
     <div class="card">
-        <h3>Total Liquidado</h3>
+        <h3>Total Cobrado</h3>
         <p id="totalMonto">$ 0.00</p>
     </div>
     <div class="card" style="border-left-color: var(--secondary);">
@@ -53,7 +54,7 @@
 
 <div class="container">
     <div class="filters">
-        <input type="text" id="cajeroId" placeholder="ID Cajero / todo">
+        <input type="text" id="cajeroId" placeholder="ID Cajero">
         
         <select id="filtroTiempo" onchange="toggleCustomDates()">
             <option value="dia">Hoy</option>
@@ -74,7 +75,7 @@
         <button class="btn-main" onclick="fetchCobros()">Actualizar</button>
         <button class="btn-pdf" onclick="generatePDF()">Cerrar Caja (PDF)</button>
         
-        <label style="font-size: 13px; margin-left: auto;">
+        <label style="font-size: 13px; margin-left: auto; display: flex; align-items: center; gap: 5px;">
             <input type="checkbox" id="autoRefresh"> Auto-consulta (10s)
         </label>
     </div>
@@ -83,7 +84,7 @@
         <thead>
             <tr>
                 <th>Fecha / Hora</th>
-                <th>Customer ID</th>
+                <th>Cajero ID</th>
                 <th>Cliente</th>
                 <th>Tax ID</th>
                 <th>Monto</th>
@@ -111,11 +112,17 @@
         const hora = document.getElementById('horaInicio').value;
         
         let url = `/api/cobros/${id}?filtro=${filtro}&horaInicio=${hora}`;
-        if(filtro === 'custom') url += `&desde=${document.getElementById('fechaDesde').value}&hasta=${document.getElementById('fechaHasta').value}`;
+        if(filtro === 'custom') {
+            url += `&desde=${document.getElementById('fechaDesde').value}&hasta=${document.getElementById('fechaHasta').value}`;
+        }
 
-        const res = await fetch(url);
-        currentData = await res.json();
-        renderTable();
+        try {
+            const res = await fetch(url);
+            currentData = await res.json();
+            renderTable();
+        } catch (e) {
+            console.error("Error en la consulta");
+        }
     }
 
     function renderTable() {
@@ -131,17 +138,17 @@
                     <td><strong>${c.customer_id || '---'}</strong></td>
                     <td>${c.customer_name || '---'}</td>
                     <td>${c.customer_tax_id || '---'}</td>
-                    <td><strong>$${parseFloat(c.amount).toLocaleString()}</strong></td>
-                    <td><span class="status-badge">Aprobado</span></td>
+                    <td><strong>$${parseFloat(c.amount).toLocaleString('es-AR')}</strong></td>
+                    <td><span class="status-badge">${c.status}</span></td>
                     <td>
                         <div class="note-wrapper">
                             <input type="text" id="n-${c.collection_id}" class="note-input" value="${c.comentario_local || ''}">
-                            <button onclick="saveNote('${c.collection_id}')">💾</button>
+                            <button class="btn-save" onclick="saveNote('${c.collection_id}')">💾</button>
                         </div>
                     </td>
                 </tr>`;
         });
-        document.getElementById('totalMonto').innerText = `$ ${total.toLocaleString()}`;
+        document.getElementById('totalMonto').innerText = `$ ${total.toLocaleString('es-AR')}`;
         document.getElementById('totalCant').innerText = currentData.length;
     }
 
@@ -152,48 +159,66 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ collection_id: id, comentario: note })
         });
-        alert("Nota guardada");
+        alert("✅ Nota guardada");
     }
 
     function generatePDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        // Logo en el PDF
-        const logo = document.getElementById('mainLogo');
-        doc.addImage(logo.src, 'PNG', 160, 10, 35, 10);
+        // Manejo de Logo en PDF
+        const img = new Image();
+        img.src = document.getElementById('mainLogo').src;
+        img.crossOrigin = "anonymous";
         
-        doc.setFontSize(20);
-        doc.text("Reporte de Cierre de Caja", 14, 20);
+        img.onload = function() {
+            doc.addImage(img, 'PNG', 155, 10, 40, 10);
+            finishPDF(doc);
+        };
         
-        doc.setFontSize(10);
-        doc.text(`Cajero ID: ${document.getElementById('cajeroId').value || 'todo'}`, 14, 30);
-        doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString()}`, 14, 35);
-        doc.text(`Total Liquidado: ${document.getElementById('totalMonto').innerText}`, 14, 40);
-        doc.text(`Cant. de Operaciones: ${document.getElementById('totalCant').innerText}`, 14, 45);
+        img.onerror = function() {
+            // Si la imagen falla, generar PDF sin logo para no bloquear al usuario
+            finishPDF(doc);
+        };
 
-        const rows = currentData.map(c => [
-            c.date_time,
-            c.customer_id,
-            c.customer_name,
-            c.customer_tax_id,
-            `$${c.amount}`,
-            c.comentario_local || ""
-        ]);
+        function finishPDF(doc) {
+            doc.setFontSize(20);
+            doc.text("Reporte de Cierre de Caja", 14, 20);
+            
+            doc.setFontSize(10);
+            doc.text(`Cajero ID: ${document.getElementById('cajeroId').value || 'todo'}`, 14, 32);
+            doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString('es-AR')}`, 14, 38);
+            doc.text(`Total Cobrado: ${document.getElementById('totalMonto').innerText}`, 14, 44);
+            doc.text(`Cant. de Operaciones: ${document.getElementById('totalCant').innerText}`, 14, 50);
 
-        doc.autoTable({
-            head: [['Fecha/Hora', 'Cajero ID', 'Cliente', 'Tax ID', 'Monto', 'Notas']],
-            body: rows,
-            startY: 55,
-            styles: { fontSize: 8 }
-        });
+            const rows = currentData.map(c => [
+                c.date_time,
+                c.customer_id,
+                c.customer_name,
+                c.customer_tax_id,
+                `$${parseFloat(c.amount).toLocaleString('es-AR')}`,
+                c.comentario_local || ""
+            ]);
 
-        doc.save("Cierre_Caja.pdf");
+            doc.autoTable({
+                head: [['Fecha/Hora', 'Cajero ID', 'Cliente', 'Tax ID', 'Monto', 'Notas']],
+                body: rows,
+                startY: 55,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [37, 99, 235] }
+            });
+
+            doc.save(`Cierre_Caja_${new Date().getTime()}.pdf`);
+        }
     }
 
     document.getElementById('autoRefresh').addEventListener('change', (e) => {
-        if(e.target.checked) refreshTimer = setInterval(fetchCobros, 10000);
-        else clearInterval(refreshTimer);
+        if(e.target.checked) {
+            fetchCobros();
+            refreshTimer = setInterval(fetchCobros, 10000);
+        } else {
+            clearInterval(refreshTimer);
+        }
     });
 </script>
 </body>
