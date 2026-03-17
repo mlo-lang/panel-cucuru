@@ -34,33 +34,48 @@ const HEADERS = {
 app.get('/api/cobros/:cajeroId', async (req, res) => {
     try {
         const idBuscado = req.params.cajeroId.trim();
+        
+        // Formato de fecha: YYYY-MM-DD
         const hoy = new Date().toISOString().split('T')[0];
         
-        console.log(`Solicitando cobros para: ${idBuscado}`);
+        console.log(`--- Iniciando consulta para: ${idBuscado} ---`);
 
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
             params: { 
                 date_from: hoy,
-                customer_id: idBuscado 
+                date_to: hoy, // Agregamos fecha de fin por si es obligatoria
+                status: 'approved' // Traemos solo los aprobados para simplificar
             },
             headers: HEADERS
         });
 
-        const cobrosCucuru = response.data.collections || [];
+        const todosLosCobros = response.data.collections || [];
+        console.log(`Total cobros hoy en Cucuru: ${todosLosCobros.length}`);
+
+        // Filtramos en tu servidor para evitar que la API falle por el parámetro customer_id
+        const filtrados = todosLosCobros.filter(c => 
+            String(c.customer_id).toLowerCase() === idBuscado.toLowerCase()
+        );
+
         const resComentarios = await pool.query("SELECT * FROM comentarios");
         
-        const respuestaFinal = cobrosCucuru.map(c => {
+        const respuestaFinal = filtrados.map(c => {
             const match = resComentarios.rows.find(com => com.collection_id === String(c.collection_id));
             return { ...c, comentario_local: match ? match.comentario : "" };
         });
 
         res.json(respuestaFinal);
+
     } catch (error) {
-        console.error("Error en API:", error.message);
+        // ESTO ES CLAVE: Imprime la respuesta real del error de Cucuru
+        if (error.response) {
+            console.error("DETALLE ERROR 400 CUCURU:", JSON.stringify(error.response.data));
+        } else {
+            console.error("Error de conexión:", error.message);
+        }
         res.status(500).json({ error: "Error al consultar datos" });
     }
 });
-
 // 4. GUARDAR COMENTARIOS
 app.post('/api/comentar', async (req, res) => {
     const { collection_id, comentario } = req.body;
