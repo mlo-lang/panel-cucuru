@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel Operativo | Cucuru</title>
+    <title>Panel de Caja | Cucuru</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -16,14 +16,14 @@
         .card p { margin: 10px 0 0; font-size: 28px; font-weight: bold; }
         .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px; }
-        input, select, button { padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
-        .btn-main { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
-        .btn-pdf { background: var(--secondary); color: white; border: none; cursor: pointer; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; }
+        input, select, button { padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; cursor: pointer; }
+        .btn-main { background: var(--primary); color: white; border: none; font-weight: bold; }
+        .btn-pdf { background: var(--secondary); color: white; border: none; font-weight: bold; }
+        .btn-mark { background: #6b7280; color: white; border: none; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { text-align: left; padding: 14px; background: #f8fafc; color: #64748b; font-size: 11px; border-bottom: 2px solid #edf2f7; text-transform: uppercase; }
         td { padding: 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; background: #dcfce7; color: #166534; }
-        .note-input { width: 100px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px; }
+        .row-mark { border-top: 4px solid var(--secondary) !important; background: #f0fdf4; }
     </style>
 </head>
 <body>
@@ -41,28 +41,23 @@
 <div class="container">
     <div class="filters">
         <input type="text" id="cajeroId" placeholder="ID Cajero">
-        <select id="filtroTiempo" onchange="toggleCustomDates()">
+        <select id="filtroTiempo" onchange="toggleDates()">
             <option value="dia">Hoy</option>
-            <option value="historico">Histórico</option>
-            <option value="custom">Rango Fecha</option>
+            <option value="custom">Rango</option>
         </select>
-        <div id="turnoControl" style="display: flex; align-items: center; gap: 5px;">
-            <span style="font-size: 12px; color: #64748b;">Inicio Turno:</span>
-            <input type="time" id="horaInicio" value="00:00">
-        </div>
         <div id="customDates" style="display:none; gap:5px;">
-            <input type="date" id="fechaDesde"><input type="date" id="fechaHasta">
+            <input type="date" id="fDesde"><input type="date" id="fHasta">
         </div>
         <button class="btn-main" onclick="fetchCobros()">Actualizar</button>
-        <button class="btn-pdf" onclick="generatePDF()">Cierre PDF</button>
-        <label style="font-size: 12px; margin-left: auto;"><input type="checkbox" id="autoRefresh"> Auto-consulta (10s)</label>
+        <button class="btn-mark" onclick="marcarInicio()">Marcar Inicio de Turno</button>
+        <button class="btn-pdf" onclick="generatePDF()">Cierre de Caja (PDF)</button>
+        <label style="font-size:12px; margin-left:auto;"><input type="checkbox" id="auto"> Auto-consulta (10s)</label>
     </div>
 
     <table>
         <thead>
             <tr>
                 <th>Fecha / Hora</th>
-                <th>Transfer ID</th>
                 <th>Cajero ID</th>
                 <th>Cliente</th>
                 <th>Tax ID</th>
@@ -77,56 +72,50 @@
 
 <script>
     let currentData = [];
-    let refreshTimer = null;
+    let inicioTurnoTS = 0;
 
-    function formatFechaLocal(fechaString) {
-        if (!fechaString) return '---';
-        const date = new Date(fechaString);
-        return date.toLocaleString('es-AR', {
-            timeZone: 'America/Argentina/Cordoba',
-            day: '2-digit', month: '2-digit', year: 'numeric',
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
+    function toggleDates() {
+        const v = document.getElementById('filtroTiempo').value;
+        document.getElementById('customDates').style.display = (v === 'custom') ? 'flex' : 'none';
     }
 
-    function toggleCustomDates() {
-        const val = document.getElementById('filtroTiempo').value;
-        document.getElementById('customDates').style.display = (val === 'custom') ? 'flex' : 'none';
-        document.getElementById('turnoControl').style.display = (val === 'dia') ? 'flex' : 'none';
+    function marcarInicio() {
+        inicioTurnoTS = Date.now();
+        alert("Inicio de turno marcado. Verás una marca verde en el próximo cobro.");
+        render();
     }
 
     async function fetchCobros() {
         const id = document.getElementById('cajeroId').value;
-        const filtro = document.getElementById('filtroTiempo').value;
-        const hora = document.getElementById('horaInicio').value;
-        let url = `/api/cobros/${id}?filtro=${filtro}&horaInicio=${hora}`;
-        if(filtro === 'custom') url += `&desde=${document.getElementById('fechaDesde').value}&hasta=${document.getElementById('fechaHasta').value}`;
+        const f = document.getElementById('filtroTiempo').value;
+        let url = `/api/cobros/${id}?filtro=${f}`;
+        if(f === 'custom') url += `&desde=${document.getElementById('fDesde').value}&hasta=${document.getElementById('fHasta').value}`;
 
-        try {
-            const res = await fetch(url);
-            currentData = await res.json();
-            renderTable();
-        } catch (e) { console.error("Error"); }
+        const res = await fetch(url);
+        currentData = await res.json();
+        render();
     }
 
-    function renderTable() {
+    function render() {
         const body = document.getElementById('tablaBody');
         body.innerHTML = '';
         let total = 0;
 
         currentData.forEach(c => {
             total += parseFloat(c.amount);
+            // Si el cobro es posterior a cuando marcamos el "inicio", le ponemos color
+            const esNuevoTurno = inicioTurnoTS > 0 && c.timestamp_raw >= inicioTurnoTS;
+            
             body.innerHTML += `
-                <tr>
-                    <td>${formatFechaLocal(c.date_time || c.created_at)}</td>
-                    <td style="font-size:11px; color:#64748b">${c.transfer_data || '---'}</td>
-                    <td><strong>${c.customer_id || '---'}</strong></td>
+                <tr class="${esNuevoTurno ? 'row-mark' : ''}">
+                    <td>${c.fecha_limpia}</td>
+                    <td><strong>${c.customer_id}</strong></td>
                     <td>${c.customer_name || '---'}</td>
                     <td>${c.customer_tax_id || '---'}</td>
                     <td><strong>$${parseFloat(c.amount).toLocaleString('es-AR')}</strong></td>
-                    <td><span class="status-badge">${c.status}</span></td>
+                    <td><span style="color:green;font-weight:bold">${c.status}</span></td>
                     <td>
-                        <input type="text" id="n-${c.collection_id}" class="note-input" value="${c.comentario_local || ''}">
+                        <input type="text" id="n-${c.collection_id}" value="${c.comentario_local || ''}" style="width:70px">
                         <button onclick="saveNote('${c.collection_id}')">💾</button>
                     </td>
                 </tr>`;
@@ -142,7 +131,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ collection_id: id, comentario: note })
         });
-        alert("✅ Nota guardada");
+        alert("Nota Guardada");
     }
 
     function generatePDF() {
@@ -154,43 +143,35 @@
         
         img.onload = function() {
             doc.addImage(img, 'PNG', 155, 10, 40, 10);
-            finishPDF(doc);
-        };
-        img.onerror = function() { finishPDF(doc); };
-
-        function finishPDF(doc) {
-            doc.setFontSize(20);
+            
+            doc.setFontSize(18);
             doc.text("Reporte de Cierre de Caja", 14, 20);
             doc.setFontSize(10);
-            doc.text(`Cajero ID: ${document.getElementById('cajeroId').value || 'General'}`, 14, 32);
-            doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString('es-AR')}`, 14, 38);
-            doc.text(`Total Cobrado: ${document.getElementById('totalMonto').innerText}`, 14, 44);
-            doc.text(`Cant. de Operaciones: ${document.getElementById('totalCant').innerText}`, 14, 50);
+            doc.text(`Cajero ID: ${document.getElementById('cajeroId').value || 'General'}`, 14, 30);
+            doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString('es-AR')}`, 14, 35);
+            doc.text(`Total Cobrado: ${document.getElementById('totalMonto').innerText}`, 14, 40);
+            doc.text(`Cant. de Operaciones: ${document.getElementById('totalCant').innerText}`, 14, 45);
 
-            const rows = currentData.map(c => [
-                formatFechaLocal(c.date_time || c.created_at),
-                c.transfer_data || '---',
+            const tableRows = currentData.map(c => [
+                c.fecha_limpia,
+                c.colsa_id, // AQUÍ SE PLASMA EL ID DE COLSA
                 c.customer_id,
                 c.customer_name,
-                `$${parseFloat(c.amount).toLocaleString('es-AR')}`,
-                c.comentario_local || ""
+                `$${c.amount}`,
+                c.comentario_local
             ]);
 
             doc.autoTable({
-                head: [['Fecha/Hora', 'Transfer ID', 'Cajero ID', 'Cliente', 'Monto', 'Notas']],
-                body: rows,
-                startY: 55,
-                styles: { fontSize: 7 },
-                headStyles: { fillColor: [37, 99, 235] }
+                head: [['Fecha/Hora', 'ID Colsa', 'Cajero', 'Cliente', 'Monto', 'Notas']],
+                body: tableRows,
+                startY: 50,
+                styles: { fontSize: 7 }
             });
             doc.save("Cierre_Caja.pdf");
-        }
+        };
     }
 
-    document.getElementById('autoRefresh').addEventListener('change', (e) => {
-        if(e.target.checked) refreshTimer = setInterval(fetchCobros, 10000);
-        else clearInterval(refreshTimer);
-    });
+    setInterval(() => { if(document.getElementById('auto').checked) fetchCobros(); }, 10000);
 </script>
 </body>
 </html>
