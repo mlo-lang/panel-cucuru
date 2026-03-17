@@ -2,47 +2,49 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel Operativo de Caja</title>
+    <title>Panel Operativo | Cucuru</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root { --primary: #2563eb; --secondary: #10b981; --bg: #f1f5f9; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
-        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .logo-cucuru { height: 40px; }
-        
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .dashboard { display: flex; gap: 20px; margin-bottom: 20px; }
-        .card { background: white; padding: 20px; border-radius: 12px; flex: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 5px solid var(--primary); }
-        .card h3 { margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card p { margin: 8px 0 0; font-size: 26px; font-weight: 800; color: #0f172a; }
-
+        .card { background: white; padding: 20px; border-radius: 12px; flex: 1; border-left: 5px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h3 { margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase; }
+        .card p { margin: 8px 0 0; font-size: 26px; font-weight: 800; }
         .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: center; }
         
-        input, select, button { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s; }
-        .btn-main { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; }
-        .btn-pdf { background: var(--secondary); color: white; border: none; font-weight: 600; cursor: pointer; }
-        
-        /* Estilo Switch (Llave) */
-        .switch-container { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #64748b; margin-left: auto; }
-        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        button { padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: 0.3s; }
+        .btn-main { background: var(--primary); color: white; }
+        .btn-pdf { background: var(--secondary); color: white; }
+        .btn-apertura { background: #6366f1; color: white; }
+
+        /* Estilo Llave Auto-consulta */
+        .switch-container { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; color: #64748b; margin-left: auto; }
+        .switch { position: relative; width: 40px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary); }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 20px; transition: .4s; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .4s; }
+        input:checked + .slider { background: var(--primary); }
         input:checked + .slider:before { transform: translateX(20px); }
 
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 14px; background: #f8fafc; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
-        td { padding: 14px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-        .row-new { border-left: 4px solid var(--secondary); background: #f0fdf4; }
+        th { text-align: left; padding: 12px; background: #f8fafc; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+
+        /* EFECTOS DE COLOR */
+        .pago-nuevo { background-color: #ecfdf5 !important; animation: highlight 2s ease-in-out; }
+        .marca-apertura { border-top: 4px solid #6366f1 !important; }
+        @keyframes highlight { from { background-color: #34d399; } to { background-color: #ecfdf5; } }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 20px; font-weight: 800; color: #1e293b;">Panel de Cobranza</h1>
-    <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru" class="logo-cucuru" id="mainLogo" crossorigin="anonymous">
+    <h1 style="margin:0; font-size: 20px; font-weight: 800;">Panel Operativo de Caja</h1>
+    <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru" style="height:40px;" id="mainLogo" crossorigin="anonymous">
 </div>
 
 <div class="dashboard">
@@ -52,21 +54,18 @@
 
 <div class="container">
     <div class="filters">
-        <input type="text" id="cajeroId" placeholder="ID Cajero" style="width: 120px;">
-        
-        <select id="filtroTiempo" onchange="toggleDates()">
+        <input type="text" id="cajeroId" placeholder="ID Cajero" style="padding:10px; border:1px solid #ddd; border-radius:8px; width:120px;">
+        <select id="filtroTiempo" onchange="toggleDates()" style="padding:10px; border-radius:8px;">
             <option value="hoy">Cobros de Hoy</option>
             <option value="ayer">Cobros de Ayer</option>
             <option value="custom">Fecha Personalizada</option>
         </select>
-
-        <div id="customDates" style="display:none; gap:5px;">
-            <input type="date" id="fDesde"><input type="date" id="fHasta">
-        </div>
-
-        <button class="btn-main" onclick="fetchCobros()">Actualizar</button>
-        <button class="btn-pdf" onclick="generatePDF()">Cierre de Caja (PDF)</button>
+        <div id="customDates" style="display:none; gap:5px;"><input type="date" id="fDesde"><input type="date" id="fHasta"></div>
         
+        <button class="btn-main" onclick="fetchCobros()">Actualizar</button>
+        <button class="btn-apertura" onclick="marcarApertura()">Apertura de Caja</button>
+        <button class="btn-pdf" onclick="generatePDF()">Cierre de Caja (PDF)</button>
+
         <div class="switch-container">
             AUTO-CONSULTA
             <label class="switch">
@@ -82,7 +81,6 @@
                 <th>Fecha / Hora</th>
                 <th>Cajero ID</th>
                 <th>Cliente</th>
-                <th>Tax ID</th>
                 <th>Monto</th>
                 <th>Estado</th>
                 <th>Notas</th>
@@ -94,6 +92,8 @@
 
 <script>
     let currentData = [];
+    let lastDataCount = 0;
+    let aperturaTS = 0;
     let autoInterval = null;
 
     function toggleDates() {
@@ -101,13 +101,17 @@
         document.getElementById('customDates').style.display = (v === 'custom') ? 'flex' : 'none';
     }
 
+    function marcarApertura() {
+        aperturaTS = Date.now();
+        alert("Apertura marcada. Los pagos desde este momento aparecerán con una marca azul.");
+        render();
+    }
+
     function toggleAuto() {
         if(document.getElementById('autoCheck').checked) {
             fetchCobros();
             autoInterval = setInterval(fetchCobros, 10000);
-        } else {
-            clearInterval(autoInterval);
-        }
+        } else { clearInterval(autoInterval); }
     }
 
     async function fetchCobros() {
@@ -117,28 +121,39 @@
         if(f === 'custom') url += `&desde=${document.getElementById('fDesde').value}&hasta=${document.getElementById('fHasta').value}`;
 
         const res = await fetch(url);
-        currentData = await res.json();
-        render();
+        const newData = await res.json();
+        
+        // Si hay más datos que antes, algo es "nuevo"
+        const isInitialLoad = currentData.length === 0;
+        const hasNew = newData.length > currentData.length;
+        
+        currentData = newData;
+        render(hasNew && !isInitialLoad);
     }
 
-    function render() {
+    function render(highlightNew = false) {
         const body = document.getElementById('tablaBody');
         body.innerHTML = '';
         let total = 0;
 
-        currentData.forEach(c => {
+        currentData.forEach((c, index) => {
             total += parseFloat(c.amount);
+            
+            // Clase para apertura de caja
+            const esApertura = aperturaTS > 0 && c.timestamp_raw >= aperturaTS;
+            // Clase para pago nuevo (solo el primero de la lista si acaba de entrar)
+            const esNuevo = highlightNew && index === 0;
+
             body.innerHTML += `
-                <tr>
+                <tr class="${esApertura ? 'marca-apertura' : ''} ${esNuevo ? 'pago-nuevo' : ''}">
                     <td>${c.fecha_limpia}</td>
                     <td><strong>${c.customer_id}</strong></td>
                     <td>${c.customer_name || '---'}</td>
-                    <td>${c.customer_tax_id || '---'}</td>
                     <td><strong>$${parseFloat(c.amount).toLocaleString('es-AR')}</strong></td>
-                    <td><span style="color:#16a34a; font-weight:700;">${c.status}</span></td>
+                    <td><span style="color:#16a34a; font-weight:bold;">${c.status}</span></td>
                     <td>
-                        <input type="text" id="n-${c.collection_id}" value="${c.comentario_local || ''}" style="width:80px; padding:4px; font-size:12px; border-radius:4px; border:1px solid #ddd;">
-                        <button onclick="saveNote('${c.collection_id}')" style="padding:4px 8px; font-size:12px; cursor:pointer;">💾</button>
+                        <input type="text" id="n-${c.collection_id}" value="${c.comentario_local || ''}" style="width:60px; font-size:11px;">
+                        <button onclick="saveNote('${c.collection_id}')">💾</button>
                     </td>
                 </tr>`;
         });
@@ -165,31 +180,14 @@
         
         img.onload = function() {
             doc.addImage(img, 'PNG', 155, 10, 40, 10);
-            doc.setFontSize(18);
             doc.text("Reporte de Cierre de Caja", 14, 20);
-            doc.setFontSize(10);
-            doc.text(`Cajero ID: ${document.getElementById('cajeroId').value || 'General'}`, 14, 30);
-            doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString('es-AR')}`, 14, 35);
-            doc.text(`Total Cobrado: ${document.getElementById('totalMonto').innerText}`, 14, 40);
-            doc.text(`Cant. de Operaciones: ${document.getElementById('totalCant').innerText}`, 14, 45);
-
-            const tableRows = currentData.map(c => [
-                c.fecha_limpia,
-                c.colsa_id, // PARAMETRO collection_trace_id
-                c.customer_id,
-                c.customer_name,
-                `$${c.amount}`,
-                c.comentario_local || ""
-            ]);
-
+            const tableRows = currentData.map(c => [c.fecha_limpia, c.colsa_id, c.customer_id, `$${c.amount}`, c.comentario_local]);
             doc.autoTable({
-                head: [['Fecha/Hora', 'ID Colsa', 'Cajero', 'Cliente', 'Monto', 'Notas']],
+                head: [['Fecha/Hora', 'ID Colsa', 'Cajero', 'Monto', 'Notas']],
                 body: tableRows,
-                startY: 50,
-                styles: { fontSize: 7 },
-                headStyles: { fillColor: [37, 99, 235] }
+                startY: 50, styles: { fontSize: 7 }
             });
-            doc.save("Cierre_Caja.pdf");
+            doc.save("Cierre.pdf");
         };
     }
 </script>
