@@ -26,8 +26,12 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         let date_from, date_to;
         const hoy = new Date();
 
-        // REPLICANDO TU LÓGICA GANADORA DE FECHAS
-        if (filtro === 'dia' || !filtro || filtro === 'hoy') {
+        // Lógica de visualización total para el cajero (Rango amplio)
+        if (filtro === 'custom' && desde && hasta) {
+            date_from = desde;
+            date_to = hasta;
+        } else {
+            // "Pagos de Hoy" real: Busca un margen amplio para no fallar
             let ayer = new Date();
             ayer.setDate(hoy.getDate() - 1);
             date_from = ayer.toISOString().split('T')[0];
@@ -35,14 +39,6 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
             let manana = new Date();
             manana.setDate(hoy.getDate() + 1);
             date_to = manana.toISOString().split('T')[0];
-        } else if (filtro === 'ayer') {
-            let antesDeAyer = new Date();
-            antesDeAyer.setDate(hoy.getDate() - 2);
-            date_from = antesDeAyer.toISOString().split('T')[0];
-            date_to = hoy.toISOString().split('T')[0];
-        } else if (filtro === 'custom') {
-            date_from = desde;
-            date_to = hasta;
         }
 
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
@@ -52,7 +48,6 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
 
         const todos = response.data.collections || [];
 
-        // Filtro de Cajero normalizado
         const filtrados = todos.filter(c => {
             if (idBuscado === "todo" || idBuscado === "") return true;
             return String(c.customer_id).toLowerCase().trim() === idBuscado;
@@ -62,11 +57,12 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         
         const respuestaFinal = filtrados.map(c => {
             const match = resComentarios.rows.find(com => com.collection_id === String(c.collection_id));
+            const fechaTS = new Date(c.date_time || c.created_at).getTime();
             return { 
                 ...c, 
                 colsa_id: c.collection_trace_id || "---",
-                fecha_limpia: new Date(c.date_time || c.created_at).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
-                timestamp_raw: new Date(c.date_time || c.created_at).getTime(),
+                fecha_limpia: new Date(fechaTS).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
+                timestamp_raw: fechaTS,
                 comentario_local: match ? match.comentario : "" 
             };
         });
@@ -79,10 +75,7 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
 
 app.post('/api/comentar', async (req, res) => {
     const { collection_id, comentario } = req.body;
-    await pool.query(
-        "INSERT INTO comentarios (collection_id, comentario) VALUES ($1, $2) ON CONFLICT (collection_id) DO UPDATE SET comentario = $2",
-        [String(collection_id), comentario]
-    );
+    await pool.query("INSERT INTO comentarios (collection_id, comentario) VALUES ($1, $2) ON CONFLICT (collection_id) DO UPDATE SET comentario = $2", [String(collection_id), comentario]);
     res.json({ status: "ok" });
 });
 
