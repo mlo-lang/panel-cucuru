@@ -1,3 +1,4 @@
+process.env.TZ = 'America/Argentina/Cordoba'; 
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -26,16 +27,12 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         let date_from, date_to;
         const hoy = new Date();
 
-        // Lógica de visualización total para el cajero (Rango amplio)
         if (filtro === 'custom' && desde && hasta) {
-            date_from = desde;
-            date_to = hasta;
+            date_from = desde; date_to = hasta;
         } else {
-            // "Pagos de Hoy" real: Busca un margen amplio para no fallar
             let ayer = new Date();
             ayer.setDate(hoy.getDate() - 1);
             date_from = ayer.toISOString().split('T')[0];
-            
             let manana = new Date();
             manana.setDate(hoy.getDate() + 1);
             date_to = manana.toISOString().split('T')[0];
@@ -47,22 +44,21 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         });
 
         const todos = response.data.collections || [];
-
         const filtrados = todos.filter(c => {
             if (idBuscado === "todo" || idBuscado === "") return true;
             return String(c.customer_id).toLowerCase().trim() === idBuscado;
         });
 
         const resComentarios = await pool.query("SELECT * FROM comentarios");
-        
         const respuestaFinal = filtrados.map(c => {
             const match = resComentarios.rows.find(com => com.collection_id === String(c.collection_id));
-            const fechaTS = new Date(c.date_time || c.created_at).getTime();
+            const ts = new Date(c.date_time || c.created_at).getTime();
             return { 
                 ...c, 
                 colsa_id: c.collection_trace_id || "---",
-                fecha_limpia: new Date(fechaTS).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
-                timestamp_raw: fechaTS,
+                cuit: c.customer_tax_id || "---", // Campo CUIT
+                fecha_limpia: new Date(ts).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
+                timestamp_raw: ts,
                 comentario_local: match ? match.comentario : "" 
             };
         });
