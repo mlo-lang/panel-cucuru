@@ -66,10 +66,10 @@ app.post('/api/comentar', async (req, res) => {
     }
 });
 
-// 3. WEBHOOK CRÍTICO: Esta ruta es la que Cucuru valida (IMPORTANTE)
-app.post('/webhook-cucuru/collection_received', (req, res) => {
-    console.log("Notificación recibida de Cucuru:", req.body);
-    // Respondemos 200 OK para que Cucuru acepte el webhook
+app.post('/webhooks/collection_received', (req, res) => {
+    console.log("Validación/Cobro de Cucuru recibido:", req.body);
+    
+    // Devolvemos el 200 OK que Cucuru exige para validar
     res.status(200).send("OK");
 });
 
