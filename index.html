@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Cucuru | Gestión de Turno</title>
+    <title>Panel de Gestión de Caja</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -15,30 +15,28 @@
         .card p { margin: 10px 0 0; font-size: 26px; font-weight: bold; }
         .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
         .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: center; }
-        button { padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; }
+        button { padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
         .btn-main { background: var(--primary); color: white; }
         .btn-pdf { background: var(--secondary); color: white; }
         .btn-apertura { background: var(--apertura); color: white; }
-        .switch-container { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: bold; color: #64748b; margin-left: auto; }
-        .switch { position: relative; width: 40px; height: 20px; display: inline-block; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 20px; transition: .4s; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .4s; }
-        input:checked + .slider { background: var(--primary); }
-        input:checked + .slider:before { transform: translateX(20px); }
         .table-wrapper { max-height: 500px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; }
         th { position: sticky; top: 0; background: #f8fafc; padding: 12px; font-size: 11px; text-transform: uppercase; z-index: 10; border-bottom: 2px solid #e2e8f0; }
         td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-        .pago-nuevo { background-color: #dcfce7 !important; animation: highlight 2s ease-out; }
+        
+        /* Estilo notas bloqueadas */
+        .note-input { width: 100px; font-size: 12px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; background: #f1f5f9; color: #64748b; }
+        .note-input:not(:disabled) { background: white; color: black; border-color: var(--primary); }
+        
         .marca-turno { border-left: 5px solid var(--apertura) !important; background: #f5f3ff; }
+        .pago-nuevo { background-color: #dcfce7 !important; animation: highlight 2s ease-out; }
         @keyframes highlight { from { background-color: #4ade80; } to { background-color: #dcfce7; } }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 20px; font-weight: 800;">Panel de Gestión de Turno</h1>
+    <h1 style="margin:0; font-size: 20px; font-weight: 800;">Panel de Gestión de Caja</h1>
     <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru" style="height:40px;" id="mainLogo" crossorigin="anonymous">
 </div>
 
@@ -49,21 +47,16 @@
 
 <div class="container">
     <div class="filters">
-        <input type="text" id="cajeroId" placeholder="ID Cajero (Ej: marcos)" style="padding:10px; border-radius:8px; border:1px solid #ddd; width:150px;">
-        <select id="filtroTiempo" onchange="toggleDates()" style="padding:10px; border-radius:8px;">
-            <option value="hoy">Pagos de Hoy (Turno)</option>
-            <option value="custom">Histórico / Personalizado</option>
+        <input type="text" id="cajeroId" placeholder="ID Cajero" style="padding:10px; border-radius:8px; border:1px solid #ddd; width:120px;">
+        <select id="filtroTiempo" onchange="toggleDates()" style="padding:10px; border-radius:8px; background:white;">
+            <option value="hoy">Pagos de Hoy</option>
+            <option value="custom">Rango Fecha</option>
         </select>
         <div id="customDates" style="display:none; gap:5px;"><input type="date" id="fDesde"><input type="date" id="fHasta"></div>
         
         <button class="btn-main" onclick="fetchCobros()">Actualizar</button>
         <button class="btn-apertura" onclick="marcarApertura()">Apertura de Caja</button>
-        <button class="btn-pdf" onclick="generatePDF()">Cierre y PDF</button>
-
-        <div class="switch-container">
-            AUTO-CONSULTA
-            <label class="switch"><input type="checkbox" id="autoCheck" onchange="toggleAuto()"><span class="slider"></span></label>
-        </div>
+        <button class="btn-pdf" onclick="generatePDF()">Cierre de caja (pdf)</button>
     </div>
 
     <div class="table-wrapper">
@@ -73,6 +66,7 @@
                     <th>Fecha / Hora</th>
                     <th>Cajero</th>
                     <th>Cliente</th>
+                    <th>CUIT</th>
                     <th>Monto</th>
                     <th>Estado</th>
                     <th>Notas</th>
@@ -86,7 +80,6 @@
 <script>
     let currentData = [];
     let aperturaTS = null;
-    let autoInterval = null;
 
     function toggleDates() {
         const v = document.getElementById('filtroTiempo').value;
@@ -95,24 +88,16 @@
 
     function marcarApertura() {
         aperturaTS = Date.now();
-        localStorage.setItem('apertura_turno', aperturaTS); // Guardamos para que no se pierda al recargar
-        alert("Apertura registrada: " + new Date(aperturaTS).toLocaleString());
+        localStorage.setItem('apertura_turno', aperturaTS);
+        alert("Apertura registrada.");
         render();
     }
 
-    // Al cargar, recuperar apertura si existe
     window.onload = () => {
         const saved = localStorage.getItem('apertura_turno');
         if(saved) aperturaTS = parseInt(saved);
         fetchCobros();
-    }
-
-    function toggleAuto() {
-        if(document.getElementById('autoCheck').checked) {
-            fetchCobros();
-            autoInterval = setInterval(fetchCobros, 10000);
-        } else { clearInterval(autoInterval); }
-    }
+    };
 
     async function fetchCobros() {
         const id = document.getElementById('cajeroId').value;
@@ -121,43 +106,43 @@
         if(f === 'custom') url += `&desde=${document.getElementById('fDesde').value}&hasta=${document.getElementById('fHasta').value}`;
 
         const res = await fetch(url);
-        const data = await res.json();
-        
-        const hasNew = data.length > currentData.length && currentData.length !== 0;
-        currentData = data;
-        render(hasNew);
+        currentData = await res.json();
+        render();
     }
 
-    function render(highlightNew = false) {
+    function render() {
         const body = document.getElementById('tablaBody');
         body.innerHTML = '';
-        let totalTurno = 0;
-        let cantTurno = 0;
+        let total = 0, cant = 0;
 
-        currentData.forEach((c, index) => {
+        currentData.forEach((c) => {
             const esDeEsteTurno = aperturaTS && c.timestamp_raw >= aperturaTS;
-            if(esDeEsteTurno) {
-                totalTurno += parseFloat(c.amount);
-                cantTurno++;
-            }
-
-            const esNuevo = highlightNew && index === 0;
+            if(esDeEsteTurno) { total += parseFloat(c.amount); cant++; }
 
             body.innerHTML += `
-                <tr class="${esDeEsteTurno ? 'marca-turno' : ''} ${esNuevo ? 'pago-nuevo' : ''}">
+                <tr class="${esDeEsteTurno ? 'marca-turno' : ''}">
                     <td>${c.fecha_limpia}</td>
                     <td><strong>${c.customer_id}</strong></td>
                     <td>${c.customer_name || '---'}</td>
+                    <td>${c.cuit}</td>
                     <td><strong>$${parseFloat(c.amount).toLocaleString('es-AR')}</strong></td>
                     <td><span style="color:#16a34a; font-weight:bold;">${c.status}</span></td>
-                    <td>
-                        <input type="text" id="n-${c.collection_id}" value="${c.comentario_local || ''}" style="width:70px; font-size:11px;">
-                        <button onclick="saveNote('${c.collection_id}')" style="padding:2px 5px;">💾</button>
+                    <td style="display:flex; gap:5px;">
+                        <input type="text" id="n-${c.collection_id}" value="${c.comentario_local || ''}" class="note-input" disabled>
+                        <button onclick="enableEdit('${c.collection_id}')" id="be-${c.collection_id}" style="background:none; padding:0">✏️</button>
+                        <button onclick="saveNote('${c.collection_id}')" id="bs-${c.collection_id}" style="background:none; padding:0; display:none">💾</button>
                     </td>
                 </tr>`;
         });
-        document.getElementById('totalMonto').innerText = `$ ${totalTurno.toLocaleString('es-AR')}`;
-        document.getElementById('totalCant').innerText = cantTurno;
+        document.getElementById('totalMonto').innerText = `$ ${total.toLocaleString('es-AR')}`;
+        document.getElementById('totalCant').innerText = cant;
+    }
+
+    function enableEdit(id) {
+        document.getElementById(`n-${id}`).disabled = false;
+        document.getElementById(`be-${id}`).style.display = 'none';
+        document.getElementById(`bs-${id}`).style.display = 'inline';
+        document.getElementById(`n-${id}`).focus();
     }
 
     async function saveNote(id) {
@@ -167,6 +152,9 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ collection_id: id, comentario: note })
         });
+        document.getElementById(`n-${id}`).disabled = true;
+        document.getElementById(`be-${id}`).style.display = 'inline';
+        document.getElementById(`bs-${id}`).style.display = 'none';
     }
 
     function generatePDF() {
@@ -177,7 +165,6 @@
         img.crossOrigin = "anonymous";
         
         img.onload = function() {
-            // Filtrar solo los datos del turno para el PDF
             const datosTurno = currentData.filter(c => !aperturaTS || c.timestamp_raw >= aperturaTS);
             const total = datosTurno.reduce((acc, c) => acc + parseFloat(c.amount), 0);
 
@@ -188,22 +175,27 @@
             doc.setFontSize(10);
             doc.text(`Cajero ID: ${document.getElementById('cajeroId').value || 'todo'}`, 14, 30);
             doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString('es-AR')}`, 14, 35);
-            doc.text(`Apertura de Turno: ${aperturaTS ? new Date(aperturaTS).toLocaleString('es-AR') : 'No registrada'}`, 14, 40);
-            doc.text(`Total Cobrado: $ ${total.toLocaleString('es-AR')}`, 14, 45);
-            doc.text(`Cant. de Operaciones: ${datosTurno.length}`, 14, 50);
+            doc.text(`Total Cobrado: $ ${total.toLocaleString('es-AR')}`, 14, 40);
+            doc.text(`Cant. de Operaciones: ${datosTurno.length}`, 14, 45);
 
-            const rows = datosTurno.map(c => [c.fecha_limpia, c.colsa_id, c.customer_id, `$${c.amount}`, c.comentario_local]);
+            const rows = datosTurno.map(c => [
+                c.fecha_limpia, 
+                c.colsa_id, 
+                c.customer_id, 
+                c.customer_name || '---', 
+                c.cuit, 
+                `$${c.amount}`, 
+                c.comentario_local
+            ]);
+
             doc.autoTable({
-                head: [['Fecha/Hora', 'ID Colsa', 'Cajero', 'Monto', 'Notas']],
+                head: [['Fecha/Hora', 'ID Colsa', 'Cajero', 'Cliente', 'CUIT', 'Monto', 'Notas']],
                 body: rows,
-                startY: 55,
-                styles: { fontSize: 7 },
+                startY: 50,
+                styles: { fontSize: 6 },
                 headStyles: { fillColor: [37, 99, 235] }
             });
-            
-            doc.save(`Cierre_${new Date().toISOString().split('T')[0]}.pdf`);
-            // Limpiar apertura tras el cierre si lo deseas (opcional)
-            // localStorage.removeItem('apertura_turno');
+            doc.save("Cierre_Caja.pdf");
         };
     }
 </script>
