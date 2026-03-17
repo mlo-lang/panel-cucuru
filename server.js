@@ -33,47 +33,54 @@ const HEADERS = {
 // 3. RUTA PARA EL PANEL DEL CAJERO (FILTRO POR CUSTOMER_ID)
 app.get('/api/cobros/:cajeroId', async (req, res) => {
     try {
-        const idBuscado = req.params.cajeroId.trim();
+        const idBuscado = req.params.cajeroId.trim().toLowerCase();
+        const { filtro, desde, hasta } = req.query; // Recibimos los nuevos parámetros
         
-        // Formato de fecha: YYYY-MM-DD
-        const hoy = new Date().toISOString().split('T')[0];
-        
-        console.log(`--- Iniciando consulta para: ${idBuscado} ---`);
+        let date_from, date_to;
+        const hoy = new Date();
+
+        // LÓGICA DE FECHAS
+        if (filtro === 'dia') {
+            date_from = hoy.toISOString().split('T')[0];
+            date_to = date_from;
+        } else if (filtro === 'semana') {
+            const semanaPasada = new Date();
+            semanaPasada.setDate(hoy.getDate() - 7);
+            date_from = semanaPasada.toISOString().split('T')[0];
+            date_to = hoy.toISOString().split('T')[0];
+        } else if (filtro === 'historico') {
+            date_from = '2024-01-01'; // Un inicio bien atrás
+            date_to = hoy.toISOString().split('T')[0];
+        } else if (filtro === 'custom') {
+            date_from = desde;
+            date_to = hasta;
+        }
+
+        console.log(`Consultando Cucuru: ${filtro} (${date_from} al ${date_to}) para ${idBuscado}`);
 
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
-            params: { 
-                date_from: hoy,
-                date_to: hoy, // Agregamos fecha de fin por si es obligatoria
-                status: 'approved' // Traemos solo los aprobados para simplificar
-            },
+            params: { date_from, date_to },
             headers: HEADERS
         });
 
         const todosLosCobros = response.data.collections || [];
-        console.log(`Total cobros hoy en Cucuru: ${todosLosCobros.length}`);
-
-        // Filtramos en tu servidor para evitar que la API falle por el parámetro customer_id
-        const filtrados = todosLosCobros.filter(c => 
-            String(c.customer_id).toLowerCase() === idBuscado.toLowerCase()
-        );
+        
+        // Filtramos por ID (si no es "todo")
+        const filtrados = todosLosCobros.filter(c => {
+            if (idBuscado === "todo" || idBuscado === "") return true;
+            return String(c.customer_id).toLowerCase() === idBuscado;
+        });
 
         const resComentarios = await pool.query("SELECT * FROM comentarios");
-        
         const respuestaFinal = filtrados.map(c => {
             const match = resComentarios.rows.find(com => com.collection_id === String(c.collection_id));
             return { ...c, comentario_local: match ? match.comentario : "" };
         });
 
         res.json(respuestaFinal);
-
     } catch (error) {
-        // ESTO ES CLAVE: Imprime la respuesta real del error de Cucuru
-        if (error.response) {
-            console.error("DETALLE ERROR 400 CUCURU:", JSON.stringify(error.response.data));
-        } else {
-            console.error("Error de conexión:", error.message);
-        }
-        res.status(500).json({ error: "Error al consultar datos" });
+        console.error("Error:", error.message);
+        res.status(500).json({ error: "Error de servidor" });
     }
 });
 // 4. GUARDAR COMENTARIOS
