@@ -23,21 +23,26 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
     try {
         const idBuscado = req.params.cajeroId.trim().toLowerCase();
         const { filtro, desde, hasta } = req.query;
-        let date_from, date_to;
         
-        const ahoraArg = new Date().toLocaleString("en-US", {timeZone: "America/Argentina/Cordoba"});
-        const hoy = new Date(ahoraArg).toISOString().split('T')[0];
+        let date_from, date_to;
+        const ahoraArg = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Argentina/Cordoba"}));
+        
+        const formatStr = (d) => d.toISOString().split('T')[0];
 
-        if (filtro === 'dia' || !filtro) {
-            date_from = hoy; date_to = hoy;
-        } else if (filtro === 'semana') {
-            let haceSiete = new Date(ahoraArg);
-            haceSiete.setDate(haceSiete.getDate() - 7);
-            date_from = haceSiete.toISOString().split('T')[0];
-            date_to = hoy;
+        if (filtro === 'hoy') {
+            date_from = formatStr(ahoraArg);
+            date_to = formatStr(ahoraArg);
+        } else if (filtro === 'ayer') {
+            const ayer = new Date(ahoraArg);
+            ayer.setDate(ayer.getDate() - 1);
+            date_from = formatStr(ayer);
+            date_to = formatStr(ayer);
+        } else if (filtro === 'custom') {
+            date_from = desde;
+            date_to = hasta;
         } else {
-            date_from = desde || '2024-01-01';
-            date_to = hasta || hoy;
+            date_from = formatStr(ahoraArg);
+            date_to = formatStr(ahoraArg);
         }
 
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
@@ -49,27 +54,17 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         let todos = response.data.collections || [];
 
         const respuestaFinal = todos.map(c => {
-            // Extraer ID Colsa del JSON transfer_data si existe
-            let colsaId = "---";
-            if (c.transfer_data) {
-                try {
-                    const dataObj = typeof c.transfer_data === 'string' ? JSON.parse(c.transfer_data) : c.transfer_data;
-                    colsaId = dataObj.data?.id || "---";
-                } catch(e) { colsaId = "---"; }
-            }
-
             const matchComentario = resComentarios.rows.find(com => com.collection_id === String(c.collection_id));
-
             return {
                 ...c,
-                colsa_id: colsaId,
+                // Usamos collection_trace_id para el PDF
+                colsa_id: c.collection_trace_id || "---",
                 fecha_limpia: new Date(c.date_time || c.created_at).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
                 timestamp_raw: new Date(c.date_time || c.created_at).getTime(),
                 comentario_local: matchComentario ? matchComentario.comentario : ""
             };
         });
 
-        // Filtrado solo por Cajero
         let filtrados = respuestaFinal;
         if (idBuscado !== "todo" && idBuscado !== "") {
             filtrados = filtrados.filter(c => String(c.customer_id).toLowerCase() === idBuscado);
