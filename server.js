@@ -27,19 +27,16 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         const hoy = new Date().toISOString().split('T')[0];
 
         if (filtro === 'dia' || !filtro) {
-            date_from = hoy;
-            date_to = hoy;
+            date_from = hoy; date_to = hoy;
         } else if (filtro === 'semana') {
             let haceSiete = new Date();
             haceSiete.setDate(haceSiete.getDate() - 7);
             date_from = haceSiete.toISOString().split('T')[0];
             date_to = hoy;
         } else if (filtro === 'historico') {
-            date_from = '2024-01-01';
-            date_to = '2026-12-31';
+            date_from = '2024-01-01'; date_to = '2026-12-31';
         } else if (filtro === 'custom') {
-            date_from = desde;
-            date_to = hasta;
+            date_from = desde; date_to = hasta;
         }
 
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
@@ -49,14 +46,16 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
 
         let todos = response.data.collections || [];
 
-        // Filtrado por Turno (Hora)
-        if (filtro === 'dia' && horaInicio) {
+        // Filtro de Turno por hora
+        if (filtro === 'dia' && horaInicio && horaInicio !== "00:00") {
             todos = todos.filter(c => {
-                const horaCobro = c.date_time ? c.date_time.split(' ')[1] : "00:00:00";
-                return horaCobro >= horaInicio;
+                if (!c.date_time) return false;
+                const horaCobro = c.date_time.split(' ')[1] || "";
+                return horaCobro.substring(0, 5) >= horaInicio;
             });
         }
 
+        // Filtro por ID Cajero (oculto: "todo" o vacío muestra todo)
         const filtrados = todos.filter(c => {
             if (idBuscado === "todo" || idBuscado === "") return true;
             return String(c.customer_id).toLowerCase() === idBuscado;
