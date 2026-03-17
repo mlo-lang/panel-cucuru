@@ -22,10 +22,8 @@ const HEADERS = {
 app.get('/api/cobros/:cajeroId', async (req, res) => {
     try {
         const idBuscado = req.params.cajeroId.trim().toLowerCase();
-        const { filtro, desde, hasta } = req.query;
+        const { filtro, desde, hasta, horaInicio } = req.query;
         let date_from, date_to;
-        
-        // Obtenemos la fecha actual en formato YYYY-MM-DD
         const hoy = new Date().toISOString().split('T')[0];
 
         if (filtro === 'dia' || !filtro) {
@@ -44,15 +42,20 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
             date_to = hasta;
         }
 
-        console.log(`Consultando Cucuru: ${date_from} al ${date_to}`);
-
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
             params: { date_from, date_to },
-            headers: HEADERS,
-            timeout: 10000
+            headers: HEADERS
         });
 
-        const todos = response.data.collections || [];
+        let todos = response.data.collections || [];
+
+        // Filtrado por Turno (Hora)
+        if (filtro === 'dia' && horaInicio) {
+            todos = todos.filter(c => {
+                const horaCobro = c.date_time ? c.date_time.split(' ')[1] : "00:00:00";
+                return horaCobro >= horaInicio;
+            });
+        }
 
         const filtrados = todos.filter(c => {
             if (idBuscado === "todo" || idBuscado === "") return true;
@@ -67,21 +70,15 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
 
         res.json(respuestaFinal);
     } catch (error) {
-        console.error("Error:", error.message);
         res.status(500).json({ error: "Error de servidor" });
     }
 });
 
 app.post('/api/comentar', async (req, res) => {
     const { collection_id, comentario } = req.body;
-    await pool.query(
-        "INSERT INTO comentarios (collection_id, comentario) VALUES ($1, $2) ON CONFLICT (collection_id) DO UPDATE SET comentario = $2",
-        [String(collection_id), comentario]
-    );
+    await pool.query("INSERT INTO comentarios (collection_id, comentario) VALUES ($1, $2) ON CONFLICT (collection_id) DO UPDATE SET comentario = $2", [String(collection_id), comentario]);
     res.json({ status: "ok" });
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Puerto ${PORT}`));
+app.listen(process.env.PORT || 3000);
