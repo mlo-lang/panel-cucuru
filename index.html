@@ -3,93 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Cobros | Cajeros</title>
+    <title>Panel de Cobros | Gestión de Cajeros</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        h1 { color: #1a1a1a; font-size: 24px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .search-box { margin: 20px 0; display: flex; gap: 10px; }
-        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
-        button { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #1a1f36; padding: 20px; margin: 0; }
+        .container { max-width: 1000px; margin: 40px auto; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { font-size: 26px; margin-bottom: 25px; color: #000; border-left: 5px solid #2563eb; padding-left: 15px; }
+        
+        .search-box { display: flex; flex-wrap: wrap; gap: 12px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; align-items: center; }
+        input, select { padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
+        input[type="text"] { flex: 2; min-width: 200px; }
+        
+        button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
         .btn-search { background: #2563eb; color: white; }
+        .btn-search:hover { background: #1d4ed8; }
         .btn-pdf { background: #10b981; color: white; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #f8fafc; padding: 12px; text-align: left; color: #64748b; font-size: 13px; text-transform: uppercase; }
-        td { padding: 15px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .status-paid { background: #dcfce7; color: #166534; }
-        .status-pending { background: #fef9c3; color: #854d0e; }
-        .note-input { width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px; }
+        .btn-pdf:hover { background: #059669; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f1f5f9; padding: 15px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; }
+        td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        
+        .status { padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: capitalize; }
+        .approved { background: #dcfce7; color: #166534; }
+        .pending { background: #fef9c3; color: #854d0e; }
+        
+        .note-input { width: 100%; box-sizing: border-box; border: 1px transparent; padding: 8px; transition: 0.3s; }
+        .note-input:focus { border: 1px solid #cbd5e1; background: #fff; border-radius: 4px; }
+        
+        #customDates { display: none; gap: 8px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Panel de Control de Cobros</h1>
+
+<div class="container">
+    <h1>Panel de Control de Cobros</h1>
+    
+    <div class="search-box">
+        <input type="text" id="cajeroId" placeholder="ID del Cajero (ej: cajero_marcos)">
         
-        <div class="search-box">
-            <input type="text" id="cajeroId" placeholder="Ingresa tu Customer ID (ej: cajero_marcos)">
-            <button class="btn-search" onclick="fetchCobros()">Consultar</button>
-            <button class="btn-pdf" onclick="generatePDF()">PDF</button>
+        <select id="filtroTiempo" onchange="toggleCustomDates()">
+            <option value="dia">Hoy</option>
+            <option value="semana">Última Semana</option>
+            <option value="historico">Histórico Completo</option>
+            <option value="custom">Rango Personalizado</option>
+        </select>
+
+        <div id="customDates">
+            <input type="date" id="fechaDesde">
+            <input type="date" id="fechaHasta">
         </div>
 
-        <table id="mainTable">
-            <thead>
-                <tr>
-                    <th>ID Operación</th>
-                    <th>Monto</th>
-                    <th>Estado</th>
-                    <th>Nota del Cajero</th>
-                </tr>
-            </thead>
-            <tbody id="tablaBody"></tbody>
-        </table>
+        <button class="btn-search" onclick="fetchCobros()">Consultar Cobros</button>
+        <button class="btn-pdf" onclick="generatePDF()">Exportar PDF</button>
     </div>
 
-    <script>
-        let currentData = [];
+    <table id="tablaCobros">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Operación</th>
+                <th>Customer ID</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>Notas del Cajero</th>
+            </tr>
+        </thead>
+        <tbody id="tablaBody">
+            </tbody>
+    </table>
+</div>
 
-        async function fetchCobros() {
-            const id = document.getElementById('cajeroId').value;
-            if(!id) return alert("Por favor ingresa un ID");
-            
-            const res = await fetch(`/api/cobros/${id}`);
+<script>
+    let currentData = [];
+
+    // Función para mostrar/ocultar campos de fecha
+    function toggleCustomDates() {
+        const filtro = document.getElementById('filtroTiempo').value;
+        document.getElementById('customDates').style.display = (filtro === 'custom') ? 'flex' : 'none';
+    }
+
+    // Función principal: Pide datos al servidor
+    async function fetchCobros() {
+        const id = document.getElementById('cajeroId').value;
+        const filtro = document.getElementById('filtroTiempo').value;
+        const desde = document.getElementById('fechaDesde').value;
+        const hasta = document.getElementById('fechaHasta').value;
+
+        if(!id) return alert("Por favor, ingresa un ID de cajero o la palabra 'todo'");
+
+        // Construir la URL con parámetros de búsqueda
+        let url = `/api/cobros/${id}?filtro=${filtro}`;
+        if(filtro === 'custom') url += `&desde=${desde}&hasta=${hasta}`;
+
+        try {
+            const res = await fetch(url);
             currentData = await res.json();
             
             const body = document.getElementById('tablaBody');
             body.innerHTML = '';
 
+            if(currentData.length === 0) {
+                body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;">No se encontraron cobros para este filtro.</td></tr>';
+                return;
+            }
+
             currentData.forEach(c => {
+                const fecha = new Date(c.created_at || Date.now()).toLocaleDateString();
                 const row = `<tr>
-                    <td>${c.collection_id}</td>
-                    <td><b>$${c.amount}</b></td>
-                    <td><span class="status ${c.status === 'approved' ? 'status-paid' : 'status-pending'}">${c.status}</span></td>
+                    <td>${fecha}</td>
+                    <td><small>${c.collection_id}</small></td>
+                    <td>${c.customer_id || 'Sin ID'}</td>
+                    <td><strong>$${c.amount}</strong></td>
+                    <td><span class="status ${c.status}">${c.status}</span></td>
                     <td>
                         <input type="text" class="note-input" value="${c.comentario_local || ''}" 
-                        onchange="updateNote('${c.collection_id}', this.value)" placeholder="Agregar nota...">
+                        onchange="updateNote('${c.collection_id}', this.value)" placeholder="Escribir nota...">
                     </td>
                 </tr>`;
                 body.innerHTML += row;
             });
+        } catch (err) {
+            alert("Error al conectar con el servidor");
         }
+    }
 
-        async function updateNote(id, note) {
-            await fetch('/api/comentar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ collection_id: id, comentario: note })
-            });
-        }
+    // Función para guardar notas en la base de datos
+    async function updateNote(id, note) {
+        await fetch('/api/comentar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ collection_id: id, comentario: note })
+        });
+    }
 
-        function generatePDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text("Reporte Diario de Caja", 14, 15);
-            const rows = currentData.map(c => [c.collection_id, `$${c.amount}`, c.status, c.comentario_local || ""]);
-            doc.autoTable({ head: [['ID', 'Monto', 'Estado', 'Nota']], body: rows, startY: 25 });
-            doc.save(`Reporte_${new Date().toLocaleDateString()}.pdf`);
-        }
-    </script>
+    // Función para crear el reporte PDF
+    function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text("Reporte de Cobros por Cajero", 14, 20);
+        doc.setFontSize(11);
+        doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 30);
+
+        const tableRows = currentData.map(c => [
+            new Date(c.created_at).toLocaleDateString(),
+            c.collection_id,
+            c.customer_id,
+            `$${c.amount}`,
+            c.status,
+            c.comentario_local || ""
+        ]);
+
+        doc.autoTable({
+            head: [['Fecha', 'Operación', 'ID Cliente', 'Monto', 'Estado', 'Notas']],
+            body: tableRows,
+            startY: 40,
+            theme: 'striped'
+        });
+
+        doc.save(`Reporte_Cobros_${document.getElementById('cajeroId').value}.pdf`);
+    }
+</script>
+
 </body>
 </html>
