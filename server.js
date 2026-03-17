@@ -1,6 +1,3 @@
-// 1. FORZAR HORA ARGENTINA EN TODO EL PROCESO (Debe ir en la línea 1)
-process.env.TZ = 'America/Argentina/Cordoba'; 
-
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -27,33 +24,27 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         const idBuscado = req.params.cajeroId.trim().toLowerCase();
         const { filtro, desde, hasta } = req.query;
         
+        // Volvemos a la lógica de fechas simple que funcionaba al principio
         let date_from, date_to;
-        
-        // Al setear TZ, new Date() ya responde en hora Argentina
-        const hoy = new Date();
-        const formatFecha = (d) => d.toISOString().split('T')[0];
+        const hoy = new Date().toISOString().split('T')[0];
 
         if (filtro === 'hoy') {
-            date_from = formatFecha(hoy);
-            date_to = formatFecha(hoy);
+            date_from = hoy; date_to = hoy;
         } else if (filtro === 'ayer') {
-            const ayer = new Date();
-            ayer.setDate(ayer.getDate() - 1);
-            date_from = formatFecha(ayer);
-            date_to = formatFecha(ayer);
+            const d = new Date(); d.setDate(d.getDate() - 1);
+            date_from = d.toISOString().split('T')[0];
+            date_to = d.toISOString().split('T')[0];
         } else if (filtro === 'custom') {
-            date_from = desde;
-            date_to = hasta;
+            date_from = desde; date_to = hasta;
         } else {
-            date_from = formatFecha(hoy);
-            date_to = formatFecha(hoy);
+            date_from = hoy; date_to = hoy;
         }
 
-        // Consultamos con rango de tiempo completo para no perder nada
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
             params: { 
-                date_from: `${date_from} 00:00:00`, 
-                date_to: `${date_to} 23:59:59` 
+                date_from, 
+                date_to,
+                limit: 100 // AGREGADO: Para que no se corte en 15 cobros
             },
             headers: HEADERS
         });
@@ -66,31 +57,19 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
             return {
                 ...c,
                 colsa_id: c.collection_trace_id || "---",
-                // Forzamos el formato local para la tabla
-                fecha_limpia: new Date(c.date_time || c.created_at).toLocaleString('es-AR', {
-                    timeZone: 'America/Argentina/Cordoba',
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit', second: '2-digit'
-                }),
+                fecha_limpia: new Date(c.date_time || c.created_at).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
                 timestamp_raw: new Date(c.date_time || c.created_at).getTime(),
                 comentario_local: matchComentario ? matchComentario.comentario : ""
             };
         });
 
-        // FILTRO CAJERO: Normalización total
         let filtrados = respuestaFinal;
         if (idBuscado !== "todo" && idBuscado !== "") {
-            filtrados = filtrados.filter(c => 
-                String(c.customer_id || "").toLowerCase().trim() === idBuscado
-            );
+            filtrados = filtrados.filter(c => String(c.customer_id || "").toLowerCase().trim() === idBuscado);
         }
 
-        res.json({ 
-            data: filtrados, 
-            rangoConsultado: `${date_from} a ${date_to}` 
-        });
+        res.json(filtrados);
     } catch (error) {
-        console.error("ERROR API:", error.message);
         res.status(500).json({ error: "Error de servidor" });
     }
 });
