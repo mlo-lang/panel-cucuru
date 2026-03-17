@@ -26,23 +26,17 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
         
         let date_from, date_to;
         const ahoraArg = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Argentina/Cordoba"}));
-        
         const formatStr = (d) => d.toISOString().split('T')[0];
 
         if (filtro === 'hoy') {
-            date_from = formatStr(ahoraArg);
-            date_to = formatStr(ahoraArg);
+            date_from = formatStr(ahoraArg); date_to = formatStr(ahoraArg);
         } else if (filtro === 'ayer') {
-            const ayer = new Date(ahoraArg);
-            ayer.setDate(ayer.getDate() - 1);
-            date_from = formatStr(ayer);
-            date_to = formatStr(ayer);
+            const ayer = new Date(ahoraArg); ayer.setDate(ayer.getDate() - 1);
+            date_from = formatStr(ayer); date_to = formatStr(ayer);
         } else if (filtro === 'custom') {
-            date_from = desde;
-            date_to = hasta;
+            date_from = desde; date_to = hasta;
         } else {
-            date_from = formatStr(ahoraArg);
-            date_to = formatStr(ahoraArg);
+            date_from = formatStr(ahoraArg); date_to = formatStr(ahoraArg);
         }
 
         const response = await axios.get('https://api.cucuru.com/app/v1/collection/collections', {
@@ -57,7 +51,6 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
             const matchComentario = resComentarios.rows.find(com => com.collection_id === String(c.collection_id));
             return {
                 ...c,
-                // Usamos collection_trace_id para el PDF
                 colsa_id: c.collection_trace_id || "---",
                 fecha_limpia: new Date(c.date_time || c.created_at).toLocaleString('es-AR', {timeZone: 'America/Argentina/Cordoba'}),
                 timestamp_raw: new Date(c.date_time || c.created_at).getTime(),
@@ -65,9 +58,13 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
             };
         });
 
+        // FILTRO DE CAJERO CORREGIDO (Normaliza ambos lados para que 'cajero_marcos' aparezca siempre)
         let filtrados = respuestaFinal;
         if (idBuscado !== "todo" && idBuscado !== "") {
-            filtrados = filtrados.filter(c => String(c.customer_id).toLowerCase() === idBuscado);
+            filtrados = filtrados.filter(c => {
+                const idCobro = String(c.customer_id || "").trim().toLowerCase();
+                return idCobro === idBuscado;
+            });
         }
 
         res.json(filtrados);
