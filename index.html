@@ -3,104 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Cobros Real-Time | Cucuru</title>
+    <title>Panel de Cobros | Cucuru</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
-        :root { --primary: #2563eb; --secondary: #10b981; --bg: #f1f5f9; --text: #0f172a; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
-        /* HEADER CON EL LOGO NUEVO */
-        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-radius: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 25px; }
-        .logo-cucuru { height: 45px; width: auto; object-fit: contain; }
-        
-        .dashboard { display: flex; gap: 15px; margin-bottom: 25px; }
-        .card { background: white; padding: 20px; border-radius: 15px; flex: 1; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-top: 5px solid var(--primary); }
-        .card h3 { margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-        .card p { margin: 10px 0 0; font-size: 26px; font-weight: 800; }
-
-        .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: center; background: #f8fafc; padding: 15px; border-radius: 12px; }
-        
-        input, select, button { padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; }
-        .btn-main { background: var(--primary); color: white; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-main:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-pdf { background: var(--secondary); color: white; border: none; font-weight: 600; cursor: pointer; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; padding: 14px; background: #fff; font-size: 12px; color: #64748b; border-bottom: 2px solid #f1f5f9; }
-        td { padding: 14px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-        
-        .status-badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: bold; background: #dcfce7; color: #166534; text-transform: uppercase; }
-        
-        .note-wrapper { display: flex; gap: 6px; }
-        .note-input { flex: 1; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; font-size: 13px; }
-        .save-btn { background: #f8fafc; border: 1px solid #e2e8f0; cursor: pointer; border-radius: 6px; font-size: 16px; }
-        .save-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
-        
-        #customDates { display: none; gap: 8px; }
-        .refresh-ui { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #2563eb; margin-left: auto; }
-        
-        .loading-dot { width: 8px; height: 8px; background: #2563eb; border-radius: 50%; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        :root { --primary: #2563eb; --bg: #f1f5f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .logo-cucuru { height: 40px; }
+        .dashboard { display: flex; gap: 15px; margin-bottom: 20px; }
+        .card { background: white; padding: 15px; border-radius: 12px; flex: 1; border-top: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card h3 { margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; }
+        .card p { margin: 5px 0 0; font-size: 22px; font-weight: bold; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; background: #f8fafc; padding: 15px; border-radius: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 12px; background: #f8fafc; color: #475569; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        .btn-save { background: #eee; border: 1px solid #ccc; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        #customDates { display: none; gap: 5px; }
+        .refresh-ui { margin-left: auto; font-size: 12px; color: var(--primary); font-weight: bold; display: flex; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 22px; font-weight: 800;">Panel Operativo de Caja</h1>
-    <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru Logo" class="logo-cucuru">
+    <h1 style="font-size: 20px; margin:0;">Gestión de Cobros Real-Time</h1>
+    <img src="https://hs.cucuru.com/hubfs/cucuru-email-logo-lightdark.png" alt="Cucuru" class="logo-cucuru" id="imgLogo">
 </div>
 
 <div class="dashboard">
-    <div class="card">
-        <h3>Recaudado (Filtro)</h3>
-        <p id="totalMonto">$ 0,00</p>
-    </div>
-    <div class="card" style="border-top-color: var(--secondary);">
-        <h3>Operaciones</h3>
-        <p id="totalCant">0</p>
-    </div>
-    <div class="card" style="border-top-color: #f59e0b;">
-        <h3>Ticket Promedio</h3>
-        <p id="promedio">$ 0,00</p>
-    </div>
+    <div class="card"><h3>Total $</h3><p id="totalMonto">$ 0</p></div>
+    <div class="card"><h3>Cant. Cobros</h3><p id="totalCant">0</p></div>
+    <div class="card"><h3>Promedio</h3><p id="promedio">$ 0</p></div>
 </div>
 
 <div class="container">
     <div class="filters">
-        <input type="text" id="cajeroId" placeholder="ID de Cajero / 'todo'">
+        <input type="text" id="cajeroId" placeholder="ID Cajero (ej: cajero_marcos)">
         <select id="filtroTiempo" onchange="toggleCustomDates()">
-            <option value="dia">Turno de Hoy</option>
-            <option value="semana">Última Semana</option>
-            <option value="historico">Histórico Completo</option>
-            <option value="custom">Rango Personalizado</option>
+            <option value="dia">Hoy</option>
+            <option value="semana">Semana</option>
+            <option value="historico">Histórico</option>
+            <option value="custom">Rango</option>
         </select>
-        
-        <div id="customDates">
-            <input type="date" id="fechaDesde">
-            <input type="date" id="fechaHasta">
-        </div>
-
-        <button class="btn-main" id="btnUpdate" onclick="fetchCobros()">Actualizar Manual</button>
-        <button class="btn-pdf" onclick="generatePDF()">Cerrar Caja (PDF)</button>
-        
-        <label class="refresh-ui" title="Consulta automática cada 10 segundos">
-            <div id="pulseIcon" style="display:none" class="loading-dot"></div>
-            <input type="checkbox" id="autoRefresh"> 🔄 Auto-consulta (10s)
-        </label>
+        <div id="customDates"><input type="date" id="desde"><input type="date" id="hasta"></div>
+        <button onclick="fetchCobros()" style="background:var(--primary); color:white; border:none; cursor:pointer; font-weight:bold;">Actualizar</button>
+        <button onclick="generatePDF()" style="background:#10b981; color:white; border:none; cursor:pointer; font-weight:bold;">Cierre PDF</button>
+        <label class="refresh-ui"><input type="checkbox" id="autoRefresh"> Auto-consulta (10s)</label>
     </div>
 
-    <table id="mainTable">
+    <table>
         <thead>
             <tr>
-                <th>Fecha / Hora</th>
+                <th>Fecha/Hora</th>
+                <th>ID Cajero</th>
                 <th>Cliente</th>
-                <th>Tax ID / CUIT</th>
-                <th>Cuenta de Cobro</th>
+                <th>Tax ID</th>
                 <th>Monto</th>
                 <th>Estado</th>
-                <th>Notas del Cajero</th>
+                <th>Notas</th>
             </tr>
         </thead>
         <tbody id="tablaBody"></tbody>
@@ -109,7 +71,7 @@
 
 <script>
     let currentData = [];
-    let refreshTimer = null;
+    let timer = null;
 
     function toggleCustomDates() {
         const val = document.getElementById('filtroTiempo').value;
@@ -119,119 +81,86 @@
     async function fetchCobros() {
         const id = document.getElementById('cajeroId').value;
         if(!id) return;
+        const f = document.getElementById('filtroTiempo').value;
+        let url = `/api/cobros/${id}?filtro=${f}`;
+        if(f === 'custom') url += `&desde=${document.getElementById('desde').value}&hasta=${document.getElementById('hasta').value}`;
+
+        const res = await fetch(url);
+        currentData = await res.json();
         
-        const pulse = document.getElementById('pulseIcon');
-        pulse.style.display = "block";
-        
-        const filtro = document.getElementById('filtroTiempo').value;
-        const desde = document.getElementById('fechaDesde').value;
-        const hasta = document.getElementById('fechaHasta').value;
-
-        let url = `/api/cobros/${id}?filtro=${filtro}`;
-        if(filtro === 'custom') url += `&desde=${desde}&hasta=${hasta}`;
-
-        try {
-            const res = await fetch(url);
-            currentData = await res.json();
-            renderTable();
-            updateStats();
-        } catch (e) { 
-            console.error("Error cargando datos"); 
-        } finally {
-            setTimeout(() => { pulse.style.display = "none"; }, 800);
-        }
-    }
-
-    function renderTable() {
         const body = document.getElementById('tablaBody');
         body.innerHTML = '';
-        
-        if(currentData.length === 0) {
-            body.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:50px; color:#94a3b8;">Sin registros para esta búsqueda.</td></tr>';
-            return;
-        }
+        let total = 0;
 
         currentData.forEach(c => {
-            const fecha = new Date(c.created_at).toLocaleString('es-AR');
-            body.innerHTML += `
-                <tr>
-                    <td style="font-size:12px; color:#64748b">${fecha}</td>
-                    <td><strong>${c.customer_name || 'Consumidor Final'}</strong></td>
-                    <td>${c.tax_id || '---'}</td>
-                    <td><small>${c.customer_account || '---'}</small></td>
-                    <td><strong>$${parseFloat(c.amount).toLocaleString('es-AR')}</strong></td>
-                    <td><span class="status-badge">${c.status}</span></td>
-                    <td>
-                        <div class="note-wrapper">
-                            <input type="text" id="n-${c.collection_id}" class="note-input" value="${c.comentario_local || ''}" placeholder="Anotar...">
-                            <button class="save-btn" onclick="saveNote('${c.collection_id}')" title="Guardar">💾</button>
-                        </div>
-                    </td>
-                </tr>`;
+            total += parseFloat(c.amount);
+            // Mostrar fecha y hora correctamente
+            const fHora = c.created_at ? new Date(c.created_at).toLocaleString('es-AR') : '---';
+            body.innerHTML += `<tr>
+                <td>${fHora}</td>
+                <td><strong>${c.customer_id || '---'}</strong></td>
+                <td>${c.customer_name || '---'}</td>
+                <td>${c.tax_id || '---'}</td>
+                <td><strong>$${parseFloat(c.amount).toLocaleString()}</strong></td>
+                <td><span style="color:green; font-weight:bold">${c.status}</span></td>
+                <td>
+                    <input type="text" id="n-${c.collection_id}" value="${c.comentario_local || ''}" style="width:80%">
+                    <button class="btn-save" onclick="saveNote('${c.collection_id}')">💾</button>
+                </td>
+            </tr>`;
         });
-    }
 
-    function updateStats() {
-        const total = currentData.reduce((acc, c) => acc + parseFloat(c.amount), 0);
-        const cant = currentData.length;
-        document.getElementById('totalMonto').innerText = `$ ${total.toLocaleString('es-AR')}`;
-        document.getElementById('totalCant').innerText = cant;
-        document.getElementById('promedio').innerText = `$ ${(cant > 0 ? total/cant : 0).toLocaleString('es-AR', {maximumFractionDigits:2})}`;
+        document.getElementById('totalMonto').innerText = `$ ${total.toLocaleString()}`;
+        document.getElementById('totalCant').innerText = currentData.length;
+        document.getElementById('promedio').innerText = `$ ${(currentData.length > 0 ? total/currentData.length : 0).toLocaleString()}`;
     }
 
     async function saveNote(id) {
         const note = document.getElementById(`n-${id}`).value;
-        try {
-            const res = await fetch('/api/comentar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ collection_id: id, comentario: note })
-            });
-            if(res.ok) alert("✅ Nota guardada");
-        } catch (e) {
-            alert("Error al guardar nota");
-        }
+        await fetch('/api/comentar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ collection_id: id, comentario: note })
+        });
+        alert("Nota guardada");
     }
 
     function generatePDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        
-        doc.setFontSize(22);
-        doc.text("Arqueo de Caja / Cierre de Lote", 14, 20);
-        
-        doc.setFontSize(10);
-        doc.text(`Cajero ID: ${document.getElementById('cajeroId').value}`, 14, 32);
-        doc.text(`Fecha/Hora Reporte: ${new Date().toLocaleString()}`, 14, 38);
-        doc.text(`Total Liquidado: ${document.getElementById('totalMonto').innerText}`, 14, 44);
-        doc.text(`Cant. de Operaciones: ${document.getElementById('totalCant').innerText}`, 14, 50);
+        const logoUrl = document.getElementById('imgLogo').src;
 
-        const tableBody = currentData.map(c => [
+        // Añadir Logo al PDF
+        doc.addImage(logoUrl, 'PNG', 150, 10, 40, 12);
+        
+        doc.setFontSize(18);
+        doc.text("Cierre de Caja", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Cajero: ${document.getElementById('cajeroId').value}`, 14, 30);
+        doc.text(`Total: ${document.getElementById('totalMonto').innerText}`, 14, 35);
+
+        const rows = currentData.map(c => [
             new Date(c.created_at).toLocaleString(),
-            c.customer_name || 'N/A',
-            c.tax_id || 'N/A',
-            `$${parseFloat(c.amount).toLocaleString()}`,
+            c.customer_id,
+            c.customer_name,
+            c.tax_id,
+            `$${c.amount}`,
             c.comentario_local || ""
         ]);
 
         doc.autoTable({
-            head: [['Fecha/Hora', 'Nombre Cliente', 'Tax ID', 'Importe', 'Comentarios']],
-            body: tableBody,
-            startY: 60,
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [37, 99, 235] }
+            head: [['Fecha/Hora', 'ID Cajero', 'Cliente', 'Tax ID', 'Monto', 'Notas']],
+            body: rows,
+            startY: 45,
+            styles: { fontSize: 7 }
         });
 
-        doc.save(`Cierre_Caja_${new Date().getTime()}.pdf`);
+        doc.save("Cierre_Caja.pdf");
     }
 
     document.getElementById('autoRefresh').addEventListener('change', (e) => {
-        if(e.target.checked) {
-            fetchCobros(); 
-            refreshTimer = setInterval(fetchCobros, 10000); 
-        } else {
-            clearInterval(refreshTimer);
-        }
+        if(e.target.checked) timer = setInterval(fetchCobros, 10000);
+        else clearInterval(timer);
     });
 </script>
 </body>
