@@ -46,16 +46,22 @@ app.get('/api/cobros/:cajeroId', async (req, res) => {
 
         let todos = response.data.collections || [];
 
-        // Filtro de Turno por hora
+        // Filtro de Turno por hora (ajustado para ser más permisivo con el formato)
         if (filtro === 'dia' && horaInicio && horaInicio !== "00:00") {
             todos = todos.filter(c => {
-                if (!c.date_time) return false;
-                const horaCobro = c.date_time.split(' ')[1] || "";
-                return horaCobro.substring(0, 5) >= horaInicio;
+                const f = c.date_time || c.created_at;
+                if (!f) return false;
+                // Convertimos a hora local Argentina para comparar con el input del cajero
+                const horaLocal = new Date(f).toLocaleTimeString('es-AR', {
+                    timeZone: 'America/Argentina/Cordoba',
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                return horaLocal >= horaInicio;
             });
         }
 
-        // Filtro por ID Cajero (oculto: "todo" o vacío muestra todo)
         const filtrados = todos.filter(c => {
             if (idBuscado === "todo" || idBuscado === "") return true;
             return String(c.customer_id).toLowerCase() === idBuscado;
